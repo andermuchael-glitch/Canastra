@@ -50,7 +50,7 @@ fun CanastraApp() {
     var aInput by remember { mutableStateOf("") }
     var bInput by remember { mutableStateOf("") }
     var roomCode by remember { mutableStateOf("") }
-    val opening = if (maxOf(teamA, teamB) >= 2000) 90 else 50
+    val opening = if (maxOf(teamA, teamB) >= 2000) 150 else 50
     MaterialTheme(colorScheme = darkColorScheme(primary = Gold, background = Forest, surface = Color(0xFF0B4938))) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF031E19), Forest, Color(0xFF0C5942))))) {
             when (screen) {
@@ -129,9 +129,9 @@ fun ScoreScreen(teamA: Int, teamB: Int, rounds: List<Pair<Int, Int>>, opening: I
         Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth().background(Color(0xFF123D31), RoundedCornerShape(16.dp)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) { Text("MÍNIMO PARA BAIXAR", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp); Text("$opening pontos", color = Gold, fontSize = 25.sp, fontWeight = FontWeight.Black) }
-            Text(if (maxOf(teamA, teamB) >= 2000) "REGRA 2.000 ATIVA" else "ATÉ 1.999 PTS", color = if (maxOf(teamA, teamB) >= 2000) Gold else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(if (maxOf(teamA, teamB) >= 2000) "MARRA • 150 PTS" else "ATÉ 1.999 PTS", color = if (maxOf(teamA, teamB) >= 2000) Gold else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
-        if (maxOf(teamA, teamB) >= 2000) { Spacer(Modifier.height(12.dp)); Text("✦ MARCO DE 2.000 PONTOS! A abertura agora exige $opening pontos.", color = Gold, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+        if (maxOf(teamA, teamB) >= 2000) { Spacer(Modifier.height(12.dp)); Text("✦ MARRA ATIVA! Para baixar jogos, agora é necessário fazer no mínimo $opening pontos.", color = Gold, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
         Spacer(Modifier.height(18.dp))
         Button(onClick = onAdd, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Forest)) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text("LANÇAR PONTUAÇÃO DA RODADA", fontWeight = FontWeight.Black) }
         Spacer(Modifier.height(20.dp)); Text("HISTÓRICO DE RODADAS", color = Cream, fontWeight = FontWeight.Bold, letterSpacing = 1.sp); Spacer(Modifier.height(8.dp))
