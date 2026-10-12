@@ -53,7 +53,7 @@ fun CanastraApp() {
     var aInput by remember { mutableStateOf("") }
     var bInput by remember { mutableStateOf("") }
     var roomCode by remember { mutableStateOf("") }
-    val opening = if (maxOf(teamA, teamB) >= 2000) 150 else 50
+    val opening = if (maxOf(teamA, teamB) >= 2000) 150 else 0
     MaterialTheme(colorScheme = darkColorScheme(primary = Gold, background = Forest, surface = Color(0xFF0B4938))) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF031E19), Forest, Color(0xFF0C5942))))) {
             when (screen) {
@@ -147,8 +147,8 @@ fun ScoreScreen(teamA: Int, teamB: Int, rounds: List<Pair<Int, Int>>, opening: I
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { ScoreCard("DUPLA VERDE", teamA, Color(0xFF0B4938), Modifier.weight(1f)); ScoreCard("DUPLA DOURADA", teamB, Color(0xFF59451B), Modifier.weight(1f)) }
         Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth().background(Color(0xFF123D31), RoundedCornerShape(16.dp)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) { Text("MÍNIMO PARA BAIXAR", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp); Text("$opening pontos", color = Gold, fontSize = 25.sp, fontWeight = FontWeight.Black) }
-            Text(if (maxOf(teamA, teamB) >= 2000) "MARRA • 150 PTS" else "ATÉ 1.999 PTS", color = if (maxOf(teamA, teamB) >= 2000) Gold else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Column(Modifier.weight(1f)) { Text(if (opening == 150) "MÍNIMO PARA BAIXAR • MARRA" else "SEM MÍNIMO PARA BAIXAR", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp); Text(if (opening == 150) "150 pontos" else "Livre", color = Gold, fontSize = 25.sp, fontWeight = FontWeight.Black) }
+            Text(if (opening == 150) "MARRA ATIVA" else "JOGO NORMAL", color = if (opening == 150) Gold else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
         if (maxOf(teamA, teamB) >= 2000) { Spacer(Modifier.height(12.dp)); Text("✦ MARRA ATIVA! Para baixar jogos, agora é necessário fazer no mínimo $opening pontos.", color = Gold, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
         Spacer(Modifier.height(18.dp))
@@ -220,7 +220,7 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
     var message by remember { mutableStateOf("Sua vez! Compre uma carta do monte ou do descarte.") }
     var gameOver by remember { mutableStateOf(false) }
     var roundNumber by remember { mutableIntStateOf(1) }
-    val opening = if (maxOf(playerPoints, aiPoints) >= 2000) 150 else 50
+    val opening = if (maxOf(playerPoints, aiPoints) >= 2000) 150 else 0
     fun restart() {
         val fresh = newDeck()
         deck = fresh
@@ -272,7 +272,7 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
         if (!hasDrawn) { message = "Compre uma carta primeiro."; return }
         if (!isValidMeld(chosen)) { message = "Escolha 3 ou mais cartas que formem um jogo válido."; return }
         val value = chosen.sumOf { it.points }
-        if (playerMelds.isEmpty() && value < opening) { message = "Para baixar pela primeira vez, precisa somar pelo menos $opening pontos."; return }
+        if (playerMelds.isEmpty() && opening > 0 && value < opening) { message = "MARRA ativa: para baixar pela primeira vez, precisa somar pelo menos $opening pontos."; return }
         playerMelds = playerMelds + listOf(chosen)
         playerPoints += value
         hand = hand.filterNot { selected.contains(it.id) }
@@ -334,9 +334,9 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
             MiniScore("VOCÊ", playerPoints, Modifier.weight(1f))
             MiniScore("MÁQUINA", aiPoints, Modifier.weight(1f))
             Column(Modifier.weight(1f).background(Color(0xFF123D31), RoundedCornerShape(14.dp)).padding(10.dp)) {
-                Text("ABERTURA", color = Muted, fontSize = 9.sp)
-                Text(opening.toString() + " pts", color = Gold, fontSize = 18.sp, fontWeight = FontWeight.Black)
-                Text(if (opening == 150) "MARRA" else "NORMAL", color = Muted, fontSize = 9.sp)
+                Text(if (opening == 150) "MARRA • MÍNIMO" else "BAIXA LIVRE", color = Muted, fontSize = 9.sp)
+                Text(if (opening == 150) "150 pts" else "Livre", color = Gold, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text(if (opening == 150) "ATIVA" else "SEM MÍNIMO", color = Muted, fontSize = 9.sp)
             }
         }
         Spacer(Modifier.height(10.dp))
