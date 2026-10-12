@@ -176,7 +176,8 @@ fun ScoreCard(label: String, score: Int, color: Color, modifier: Modifier = Modi
 
 data class GameCard(val id: Int, val rank: Int, val suit: String, val joker: Boolean = false) {
     val label: String get() = if (joker) "★" else when (rank) { 1 -> "A"; 11 -> "J"; 12 -> "Q"; 13 -> "K"; else -> rank.toString() }
-    val points: Int get() = when { joker -> 50; rank == 1 -> 15; rank >= 8 -> 10; else -> 5 }
+    val isWild: Boolean get() = joker || rank == 2
+    val points: Int get() = when { joker -> 50; rank == 1 -> 15; rank == 2 -> 10; rank >= 8 -> 10; else -> 5 }
     val displaySuit: String get() = when (suit) { "S" -> "♠"; "H" -> "♥"; "D" -> "♦"; "C" -> "♣"; else -> "★" }
     val isRed: Boolean get() = suit == "H" || suit == "D"
 }
@@ -195,14 +196,17 @@ private fun newDeck(): MutableList<GameCard> {
 
 private fun isValidMeld(cards: List<GameCard>): Boolean {
     if (cards.size < 3) return false
-    if (cards.any { it.joker }) return cards.size >= 3 && (cards.filterNot { it.joker }.map { it.rank }.distinct().size <= 1 ||
-        cards.filterNot { it.joker }.map { it.suit }.distinct().size == 1)
-    val sameRank = cards.map { it.rank }.distinct().size == 1
-    val sameSuit = cards.map { it.suit }.distinct().size == 1
-    if (sameRank) return true
+    val wilds = cards.count { it.isWild }
+    val natural = cards.filterNot { it.isWild }
+    if (natural.isEmpty()) return true
+    val sameRank = natural.map { it.rank }.distinct().size == 1
+    if (sameRank && natural.size + wilds <= 4) return true
+    val sameSuit = natural.map { it.suit }.distinct().size == 1
     if (!sameSuit) return false
-    val ranks = cards.map { if (it.rank == 1) 14 else it.rank }.sorted()
-    return ranks.zipWithNext().all { it.second - it.first == 1 }
+    val ranks = natural.map { if (it.rank == 1) 14 else it.rank }.distinct().sorted()
+    if (ranks.size != natural.size) return false
+    val gapsNeeded = ranks.zipWithNext().sumOf { (a, b) -> (b - a - 1).coerceAtLeast(0) }
+    return gapsNeeded <= wilds && cards.size <= 14
 }
 
 @Composable
@@ -262,6 +266,10 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
     fun drawDiscard() {
         if (hasDrawn || gameOver) return
         if (discard.isEmpty()) { message = "Ainda não há cartas no descarte."; return }
+        if (discard.last().isWild) {
+            message = if (discard.last().rank == 2) "Lixo trancado pelo 2 (coringa sujo)! Compre do monte." else "Lixo trancado pelo coringa real! Compre do monte."
+            return
+        }
         hand = hand + discard.last()
         discard = discard.dropLast(1)
         hasDrawn = true
@@ -347,7 +355,7 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("MONTE: " + stock.size, color = Muted, fontSize = 11.sp)
                     Text("•", color = Gold)
-                    Text("DESCARTE: " + (discard.lastOrNull()?.let { it.label + it.displaySuit } ?: "vazio"), color = Gold, fontSize = 11.sp)
+                    Text("DESCARTE: " + (discard.lastOrNull()?.let { it.label + it.displaySuit } ?: "vazio") + if (discard.lastOrNull()?.isWild == true) " 🔒" else "", color = Gold, fontSize = 11.sp)
                 }
             }
         }
@@ -378,7 +386,7 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { drawFromStock() }, enabled = !hasDrawn && !gameOver, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = Cream)) { Text("COMPRAR", fontWeight = FontWeight.Bold) }
-            OutlinedButton(onClick = { drawDiscard() }, enabled = !hasDrawn && discard.isNotEmpty() && !gameOver, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = Cream)) { Text("PEGAR DESCARTE", fontWeight = FontWeight.Bold, fontSize = 10.sp) }
+            OutlinedButton(onClick = { drawDiscard() }, enabled = !hasDrawn && discard.isNotEmpty() && discard.lastOrNull()?.isWild != true && !gameOver, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = Cream)) { Text(if (discard.lastOrNull()?.isWild == true) "LIXO TRANCADO 🔒" else "PEGAR DESCARTE", fontWeight = FontWeight.Bold, fontSize = 10.sp) }
         }
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -414,12 +422,16 @@ fun MeldPile(label: String, melds: List<List<GameCard>>) {
 
 @Composable
 fun MiniPlayingCard(card: GameCard, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Column(modifier.height(72.dp).background(if (selected) Color(0xFFFFD778) else Cream, RoundedCornerShape(9.dp))
+    Column(modifier.height(96.dp).background(if (selected) Color(0xFFFFD778) else Cream, RoundedCornerShape(9.dp))
         .border(if (selected) 2.dp else 1.dp, if (selected) Gold else Color(0xFFE6DCC9), RoundedCornerShape(9.dp))
         .clickable(onClick = onClick).padding(5.dp), verticalArrangement = Arrangement.SpaceBetween) {
-        Text(card.label, color = if (card.isRed) Red else Forest, fontWeight = FontWeight.Black, fontSize = 13.sp)
-        Text(card.displaySuit, color = if (card.isRed) Red else Forest, fontSize = 18.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
-        Text(card.label, color = if (card.isRed) Red else Forest, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.align(Alignment.End))
+        Text(card.label, color = if (card.isRed) Red else Forest, fontWeight = FontWeight.Black, fontSize = 15.sp)
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(card.displaySuit, color = if (card.isRed) Red else Forest, fontSize = 25.sp)
+            if (card.rank == 2) Text("CORINGA SUJO", color = if (card.isRed) Red else Forest, fontSize = 5.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+            if (card.joker) Text("CORINGA REAL", color = Gold, fontSize = 5.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+        }
+        Text(card.label, color = if (card.isRed) Red else Forest, fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.align(Alignment.End))
     }
 }
 
