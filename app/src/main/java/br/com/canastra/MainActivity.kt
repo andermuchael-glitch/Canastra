@@ -177,7 +177,10 @@ fun ScoreCard(label: String, score: Int, color: Color, modifier: Modifier = Modi
 data class GameCard(val id: Int, val rank: Int, val suit: String, val joker: Boolean = false) {
     val label: String get() = if (joker) "★" else when (rank) { 1 -> "A"; 11 -> "J"; 12 -> "Q"; 13 -> "K"; else -> rank.toString() }
     val isWild: Boolean get() = joker || rank == 2
-    val points: Int get() = when { joker -> 50; rank == 1 -> 15; rank == 2 -> 10; rank >= 8 -> 10; else -> 5 }
+    val isRedThree: Boolean get() = rank == 3 && (suit == "H" || suit == "D")
+    val isBlackThree: Boolean get() = rank == 3 && (suit == "S" || suit == "C")
+    val locksDiscard: Boolean get() = isWild || isBlackThree
+    val points: Int get() = when { joker -> 50; rank == 1 -> 15; rank == 2 -> 10; rank == 3 -> if (isRedThree) 100 else 5; rank >= 8 -> 10; else -> 5 }
     val displaySuit: String get() = when (suit) { "S" -> "♠"; "H" -> "♥"; "D" -> "♦"; "C" -> "♣"; else -> "★" }
     val isRed: Boolean get() = suit == "H" || suit == "D"
 }
@@ -193,6 +196,15 @@ private fun newDeck(): MutableList<GameCard> {
     }
     return cards.shuffled().toMutableList()
 }
+
+private fun canastaBonus(cards: List<GameCard>): Int {
+    if (cards.size < 7) return 0
+    if (cards.any { it.rank == 2 }) return 100
+    return (200 + (cards.size - 7) * 100).coerceAtMost(600)
+}
+
+private fun hasCanasta(melds: List<List<GameCard>>): Boolean = melds.any { it.size >= 7 }
+private fun redThreeCount(cards: List<GameCard>): Int = cards.count { it.isRedThree }
 
 private fun isValidMeld(cards: List<GameCard>): Boolean {
     if (cards.size < 3) return false
@@ -258,16 +270,34 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
     fun drawFromStock() {
         if (hasDrawn || gameOver) return
         if (stock.isEmpty()) { message = "O monte acabou. Inicie uma nova partida."; gameOver = true; return }
-        hand = hand + stock.first()
+        var drawn = stock.first()
         stock = stock.drop(1)
+        var redThrees = 0
+        while (drawn.isRedThree) {
+            redThrees++
+            // Red threes are laid aside automatically; immediately draw a replacement.
+            if (stock.isEmpty()) break
+            drawn = stock.first()
+            stock = stock.drop(1)
+        }
+        if (redThrees > 0) {
+            hand = hand + drawn
+            message = "3 vermelho separado automaticamente. Carta reposta" + if (redThrees > 1) " ($redThrees cartas vermelhas)." else "."
+        } else {
+            hand = hand + drawn
+            message = "Escolha cartas para baixar um jogo ou descarte uma carta."
+        }
         hasDrawn = true
-        message = "Escolha cartas para baixar um jogo ou descarte uma carta."
     }
     fun drawDiscard() {
         if (hasDrawn || gameOver) return
         if (discard.isEmpty()) { message = "Ainda não há cartas no descarte."; return }
-        if (discard.last().isWild) {
-            message = if (discard.last().rank == 2) "Lixo trancado pelo 2 (coringa sujo)! Compre do monte." else "Lixo trancado pelo coringa real! Compre do monte."
+        if (discard.last().locksDiscard) {
+            message = when {
+                discard.last().rank == 2 -> "Lixo trancado pelo 2 (coringa sujo)! Compre do monte."
+                discard.last().isBlackThree -> "Lixo trancado pelo 3 preto! Compre do monte."
+                else -> "Lixo trancado pelo coringa real! Compre do monte."
+            }
             return
         }
         hand = hand + discard.last()
@@ -281,11 +311,12 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
         if (!isValidMeld(chosen)) { message = "Escolha 3 ou mais cartas que formem um jogo válido."; return }
         val value = chosen.sumOf { it.points }
         if (playerMelds.isEmpty() && opening > 0 && value < opening) { message = "MARRA ativa: para baixar pela primeira vez, precisa somar pelo menos $opening pontos."; return }
+        val bonus = canastaBonus(chosen)
         playerMelds = playerMelds + listOf(chosen)
-        playerPoints += value
+        playerPoints += value + bonus
         hand = hand.filterNot { selected.contains(it.id) }
         selected = emptySet()
-        message = "Jogo baixado! +$value pontos."
+        message = if (bonus > 0) "Jogo baixado! +$value pontos e bônus de canastra de $bonus." else "Jogo baixado! +$value pontos."
     }
     fun discardSelected() {
         if (!hasDrawn || gameOver) { message = "Compre uma carta antes de descartar."; return }
@@ -307,10 +338,12 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
                 group.size >= 3 && group.map { if (it.rank == 1) 14 else it.rank }.sorted().zipWithNext().all { it.second - it.first == 1 }
             }
         if (candidate != null && (aiMelds.isNotEmpty() || candidate.sumOf { it.points } >= (if (maxOf(playerPoints, aiPoints) >= 2000) 150 else 0))) {
+            val aiValue = candidate.sumOf { it.points }
+            val aiCanastaBonus = canastaBonus(candidate)
             aiMelds = aiMelds + listOf(candidate)
-            aiPoints += candidate.sumOf { it.points }
+            aiPoints += aiValue + aiCanastaBonus
             computer = computer.filterNot { c -> candidate.any { it.id == c.id } }
-            message = "A máquina baixou um jogo de " + candidate.sumOf { it.points } + " pontos."
+            message = "A máquina baixou um jogo de " + (aiValue + aiCanastaBonus) + " pontos."
         } else {
             message = "Sua vez novamente. Compre uma carta."
         }
@@ -321,8 +354,14 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
         }
         aiHand = computer
         if (hand.isEmpty() || aiHand.isEmpty()) {
-            val playerTotal = playerPoints + hand.sumOf { it.points }
-            val aiTotal = aiPoints + aiHand.sumOf { it.points }
+            val playerHasCanasta = hasCanasta(playerMelds)
+            val aiHasCanasta = hasCanasta(aiMelds)
+            val playerRedThreeBonus = if (playerHasCanasta) 100 * redThreeCount(hand) else 0
+            val aiRedThreeBonus = if (aiHasCanasta) 100 * redThreeCount(aiHand) else 0
+            val blackThreePenaltyToPlayer = if (aiHand.any { it.isBlackThree }) 100 else 0
+            val blackThreePenaltyToAi = if (hand.any { it.isBlackThree }) 100 else 0
+            val playerTotal = playerPoints + hand.filterNot { it.isRedThree }.sumOf { it.points } + playerRedThreeBonus - blackThreePenaltyToPlayer
+            val aiTotal = aiPoints + aiHand.filterNot { it.isRedThree }.sumOf { it.points } + aiRedThreeBonus - blackThreePenaltyToAi
             onRoundScored(playerTotal, aiTotal)
             message = if (playerTotal >= aiTotal) "Rodada encerrada: você venceu!" else "Rodada encerrada: a máquina venceu."
             gameOver = true
@@ -355,7 +394,7 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("MONTE: " + stock.size, color = Muted, fontSize = 11.sp)
                     Text("•", color = Gold)
-                    Text("DESCARTE: " + (discard.lastOrNull()?.let { it.label + it.displaySuit } ?: "vazio") + if (discard.lastOrNull()?.isWild == true) " 🔒" else "", color = Gold, fontSize = 11.sp)
+                    Text("DESCARTE: " + (discard.lastOrNull()?.let { it.label + it.displaySuit } ?: "vazio") + if (discard.lastOrNull()?.locksDiscard == true) " 🔒" else "", color = Gold, fontSize = 11.sp)
                 }
             }
         }
@@ -386,7 +425,7 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { drawFromStock() }, enabled = !hasDrawn && !gameOver, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = Cream)) { Text("COMPRAR", fontWeight = FontWeight.Bold) }
-            OutlinedButton(onClick = { drawDiscard() }, enabled = !hasDrawn && discard.isNotEmpty() && discard.lastOrNull()?.isWild != true && !gameOver, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = Cream)) { Text(if (discard.lastOrNull()?.isWild == true) "LIXO TRANCADO 🔒" else "PEGAR DESCARTE", fontWeight = FontWeight.Bold, fontSize = 10.sp) }
+            OutlinedButton(onClick = { drawDiscard() }, enabled = !hasDrawn && discard.isNotEmpty() && discard.lastOrNull()?.locksDiscard != true && !gameOver, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = Cream)) { Text(if (discard.lastOrNull()?.isWild == true) "LIXO TRANCADO 🔒" else "PEGAR DESCARTE", fontWeight = FontWeight.Bold, fontSize = 10.sp) }
         }
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
