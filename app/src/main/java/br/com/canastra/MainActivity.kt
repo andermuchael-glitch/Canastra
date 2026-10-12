@@ -232,6 +232,8 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
     var aiMelds by remember { mutableStateOf(listOf<List<GameCard>>()) }
     var playerPoints by remember { mutableIntStateOf(0) }
     var aiPoints by remember { mutableIntStateOf(0) }
+    var playerRedThrees by remember { mutableIntStateOf(0) }
+    var aiRedThrees by remember { mutableIntStateOf(0) }
     var hasDrawn by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("Sua vez! Compre uma carta do monte ou do descarte.") }
     var gameOver by remember { mutableStateOf(false) }
@@ -248,6 +250,8 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
         aiMelds = emptyList()
         playerPoints = 0
         aiPoints = 0
+        playerRedThrees = 0
+        aiRedThrees = 0
         hasDrawn = false
         message = "Sua vez! Compre uma carta do monte ou do descarte."
         gameOver = false
@@ -262,8 +266,12 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
     LaunchedEffect(Unit) {
         val fresh = newDeck()
         deck = fresh
-        hand = fresh.take(11)
-        aiHand = fresh.drop(11).take(11)
+        val dealtPlayer = fresh.take(11)
+        val dealtAi = fresh.drop(11).take(11)
+        playerRedThrees = dealtPlayer.count { it.isRedThree }
+        aiRedThrees = dealtAi.count { it.isRedThree }
+        hand = dealtPlayer.filterNot { it.isRedThree }
+        aiHand = dealtAi.filterNot { it.isRedThree }
         stock = fresh.drop(22)
         discard = emptyList()
     }
@@ -281,8 +289,9 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
             stock = stock.drop(1)
         }
         if (redThrees > 0) {
-            hand = hand + drawn
-            message = "3 vermelho separado automaticamente. Carta reposta" + if (redThrees > 1) " ($redThrees cartas vermelhas)." else "."
+            playerRedThrees += redThrees
+            hand = hand + if (drawn.isRedThree) emptyList() else listOf(drawn)
+            message = "3 vermelho separado automaticamente e reposto por outra carta."
         } else {
             hand = hand + drawn
             message = "Escolha cartas para baixar um jogo ou descarte uma carta."
@@ -329,8 +338,15 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
         // Computer plays offline: draws, tries a legal meld, and discards a low-value card.
         var computer = aiHand
         if (stock.isNotEmpty()) {
-            computer = computer + stock.first()
+            var aiDrawn = stock.first()
             stock = stock.drop(1)
+            while (aiDrawn.isRedThree) {
+                aiRedThrees++
+                if (stock.isEmpty()) break
+                aiDrawn = stock.first()
+                stock = stock.drop(1)
+            }
+            if (!aiDrawn.isRedThree) computer = computer + aiDrawn
         }
         val sorted = computer.sortedByDescending { it.points }
         val candidate = sorted.groupBy { it.rank }.values.firstOrNull { it.size >= 3 }
@@ -356,8 +372,8 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
         if (hand.isEmpty() || aiHand.isEmpty()) {
             val playerHasCanasta = hasCanasta(playerMelds)
             val aiHasCanasta = hasCanasta(aiMelds)
-            val playerRedThreeBonus = if (playerHasCanasta) 100 * redThreeCount(hand) else 0
-            val aiRedThreeBonus = if (aiHasCanasta) 100 * redThreeCount(aiHand) else 0
+            val playerRedThreeBonus = if (playerHasCanasta) 100 * playerRedThrees else 0
+            val aiRedThreeBonus = if (aiHasCanasta) 100 * aiRedThrees else 0
             val blackThreePenaltyToPlayer = if (aiHand.any { it.isBlackThree }) 100 else 0
             val blackThreePenaltyToAi = if (hand.any { it.isBlackThree }) 100 else 0
             val playerTotal = playerPoints + hand.filterNot { it.isRedThree }.sumOf { it.points } + playerRedThreeBonus - blackThreePenaltyToPlayer
