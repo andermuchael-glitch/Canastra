@@ -5,7 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -54,8 +57,13 @@ fun CanastraApp() {
     MaterialTheme(colorScheme = darkColorScheme(primary = Gold, background = Forest, surface = Color(0xFF0B4938))) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF031E19), Forest, Color(0xFF0C5942))))) {
             when (screen) {
-                "home" -> HomeScreen({ screen = "score" }, { screen = "online" })
+                "home" -> HomeScreen({ screen = "score" }, { screen = "online" }, { screen = "offline" })
                 "score" -> ScoreScreen(teamA, teamB, rounds, opening, { screen = "home" }, { showRound = true })
+                "offline" -> OfflineGameScreen({ screen = "home" }, { a, b ->
+                    teamA += a
+                    teamB += b
+                    rounds = rounds + (a to b)
+                })
                 else -> OnlineScreen(roomCode, { roomCode = it }, { screen = "home" })
             }
             if (showRound) AlertDialog(
@@ -67,9 +75,14 @@ fun CanastraApp() {
                     OutlinedTextField(bInput, { bInput = it }, label = { Text("Dupla 2") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
                 } },
                 confirmButton = { TextButton(onClick = {
-                    val a = aInput.toIntOrNull() ?: 0; val b = bInput.toIntOrNull() ?: 0
-                    teamA += a; teamB += b; rounds = rounds + (a to b)
-                    aInput = ""; bInput = ""; showRound = false
+                    val a = aInput.toIntOrNull() ?: 0
+                    val b = bInput.toIntOrNull() ?: 0
+                    teamA += a
+                    teamB += b
+                    rounds = rounds + (a to b)
+                    aInput = ""
+                    bInput = ""
+                    showRound = false
                 }) { Text("SALVAR RODADA", color = Gold, fontWeight = FontWeight.Bold) } },
                 dismissButton = { TextButton(onClick = { showRound = false }) { Text("Cancelar", color = Muted) } }
             )
@@ -78,33 +91,39 @@ fun CanastraApp() {
 }
 
 @Composable
-fun HomeScreen(onPlay: () -> Unit, onOnline: () -> Unit) {
+fun HomeScreen(onPlay: () -> Unit, onOnline: () -> Unit, onOffline: () -> Unit) {
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(44.dp).background(Gold, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Default.SportsEsports, null, tint = Forest, modifier = Modifier.size(27.dp)) }
             Spacer(Modifier.width(10.dp))
             Column { Text("CANASTRA", color = Cream, fontWeight = FontWeight.Black, fontSize = 22.sp, letterSpacing = 3.sp); Text("CLUBE • CARTAS & ESTRATÉGIA", color = Gold, fontSize = 9.sp, letterSpacing = 1.5.sp) }
         }
-        Spacer(Modifier.height(34.dp))
+        Spacer(Modifier.height(26.dp))
         Box(Modifier.fillMaxWidth().weight(1f).background(Brush.linearGradient(listOf(Color(0xFF17634B), Color(0xFF082D25))), RoundedCornerShape(30.dp)).border(1.dp, Color(0x5578B69A), RoundedCornerShape(30.dp)).padding(20.dp)) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text("♠", color = Cream, fontSize = 45.sp); Text("A MESA ESTÁ", color = Muted, fontSize = 13.sp, letterSpacing = 4.sp)
+                Text("♠", color = Cream, fontSize = 45.sp)
+                Text("A MESA ESTÁ", color = Muted, fontSize = 13.sp, letterSpacing = 4.sp)
                 Text("ABERTA", color = Gold, fontSize = 38.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
                 Spacer(Modifier.height(22.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy((-18).dp)) { PlayingCard("A", "♠", false); PlayingCard("7", "♥", true); PlayingCard("K", "♣", false) }
-                Spacer(Modifier.height(26.dp)); Text("Sua próxima canastra começa aqui.", color = Cream, textAlign = TextAlign.Center, fontSize = 15.sp)
+                Spacer(Modifier.height(26.dp))
+                Text("Sua próxima canastra começa aqui.", color = Cream, textAlign = TextAlign.Center, fontSize = 15.sp)
                 Text("Estratégia, parceria e aquela virada no placar.", color = Muted, textAlign = TextAlign.Center, fontSize = 12.sp)
             }
         }
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onOnline, modifier = Modifier.fillMaxWidth().height(58.dp), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Forest)) {
-            Icon(Icons.Default.Groups, null); Spacer(Modifier.width(10.dp)); Text("JOGAR ONLINE", fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+        Spacer(Modifier.height(18.dp))
+        Button(onClick = onOffline, modifier = Modifier.fillMaxWidth().height(58.dp), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Forest)) {
+            Icon(Icons.Default.SportsEsports, null); Spacer(Modifier.width(10.dp)); Text("JOGAR OFFLINE • CONTRA A MÁQUINA", fontWeight = FontWeight.Black, letterSpacing = .3.sp)
         }
-        Spacer(Modifier.height(12.dp))
-        OutlinedButton(onClick = onPlay, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF76A994)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Cream)) {
+        Spacer(Modifier.height(10.dp))
+        OutlinedButton(onClick = onOnline, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF76A994)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Cream)) {
+            Icon(Icons.Default.Groups, null); Spacer(Modifier.width(10.dp)); Text("JOGAR ONLINE", fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(10.dp))
+        OutlinedButton(onClick = onPlay, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF76A994)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Cream)) {
             Icon(Icons.Default.EmojiEvents, null); Spacer(Modifier.width(10.dp)); Text("PLACAR E PARTIDA", fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.height(16.dp)); Text("DESAFIE • SOME • VÁ ATÉ A VITÓRIA", color = Muted, fontSize = 10.sp, letterSpacing = 1.4.sp)
+        Spacer(Modifier.height(12.dp)); Text("DESAFIE • SOME • VÁ ATÉ A VITÓRIA", color = Muted, fontSize = 10.sp, letterSpacing = 1.4.sp)
     }
 }
 
@@ -139,7 +158,7 @@ fun ScoreScreen(teamA: Int, teamB: Int, rounds: List<Pair<Int, Int>>, opening: I
             Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("♧", color = Gold, fontSize = 38.sp); Text("A primeira rodada começa agora", color = Muted) }
         } else Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             rounds.forEachIndexed { i, pair -> Row(Modifier.fillMaxWidth().background(Color(0xFF103D32), RoundedCornerShape(12.dp)).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("RODADA ${i + 1}", color = Muted, modifier = Modifier.weight(1f), fontSize = 12.sp); Text("+${pair.first}", color = Cream, fontWeight = FontWeight.Bold); Spacer(Modifier.width(20.dp)); Text("+${pair.second}", color = Gold, fontWeight = FontWeight.Bold)
+                Text("RODADA " + (i + 1), color = Muted, modifier = Modifier.weight(1f), fontSize = 12.sp); Text("+" + pair.first, color = Cream, fontWeight = FontWeight.Bold); Spacer(Modifier.width(20.dp)); Text("+" + pair.second, color = Gold, fontWeight = FontWeight.Bold)
             } }
         }
         Text("Canastra • placar local", color = Muted, fontSize = 10.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp))
@@ -152,6 +171,255 @@ fun ScoreCard(label: String, score: Int, color: Color, modifier: Modifier = Modi
         Text(label, color = Cream.copy(alpha = .8f), fontSize = 10.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.height(8.dp))
         Text(score.toString(), color = Gold, fontSize = 36.sp, fontWeight = FontWeight.Black); Text("PONTOS", color = Muted, fontSize = 9.sp, letterSpacing = 2.sp)
         Spacer(Modifier.height(8.dp)); LinearProgressIndicator(progress = { (score / 3000f).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth(), color = Gold, trackColor = Color.White.copy(alpha = .15f))
+    }
+}
+
+private data class GameCard(val id: Int, val rank: Int, val suit: String, val joker: Boolean = false) {
+    val label: String get() = if (joker) "★" else when (rank) { 1 -> "A"; 11 -> "J"; 12 -> "Q"; 13 -> "K"; else -> rank.toString() }
+    val points: Int get() = when { joker -> 50; rank == 1 -> 15; rank >= 8 -> 10; else -> 5 }
+    val displaySuit: String get() = when (suit) { "S" -> "♠"; "H" -> "♥"; "D" -> "♦"; "C" -> "♣"; else -> "★" }
+    val isRed: Boolean get() = suit == "H" || suit == "D"
+}
+
+private fun newDeck(): MutableList<GameCard> {
+    val cards = mutableListOf<GameCard>()
+    var id = 0
+    repeat(2) {
+        listOf("S", "H", "D", "C").forEach { suit ->
+            (1..13).forEach { rank -> cards.add(GameCard(id++, rank, suit)) }
+        }
+        repeat(2) { cards.add(GameCard(id++, 0, "J", true)) }
+    }
+    return cards.shuffled().toMutableList()
+}
+
+private fun isValidMeld(cards: List<GameCard>): Boolean {
+    if (cards.size < 3) return false
+    if (cards.any { it.joker }) return cards.size >= 3 && (cards.filterNot { it.joker }.map { it.rank }.distinct().size <= 1 ||
+        cards.filterNot { it.joker }.map { it.suit }.distinct().size == 1)
+    val sameRank = cards.map { it.rank }.distinct().size == 1
+    val sameSuit = cards.map { it.suit }.distinct().size == 1
+    if (sameRank) return true
+    if (!sameSuit) return false
+    val ranks = cards.map { if (it.rank == 1) 14 else it.rank }.sorted()
+    return ranks.zipWithNext().all { it.second - it.first == 1 }
+}
+
+@Composable
+fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
+    var deck by remember { mutableStateOf(newDeck()) }
+    var hand by remember { mutableStateOf(deck.take(11)) }
+    var stock by remember { mutableStateOf(deck.drop(11)) }
+    var discard by remember { mutableStateOf(emptyList<GameCard>()) }
+    var selected by remember { mutableStateOf(setOf<Int>()) }
+    var playerMelds by remember { mutableStateOf(listOf<List<GameCard>>()) }
+    var aiMelds by remember { mutableStateOf(listOf<List<GameCard>>()) }
+    var playerPoints by remember { mutableIntStateOf(0) }
+    var aiPoints by remember { mutableIntStateOf(0) }
+    var hasDrawn by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf("Sua vez! Compre uma carta do monte ou do descarte.") }
+    var gameOver by remember { mutableStateOf(false) }
+    var roundNumber by remember { mutableIntStateOf(1) }
+    val opening = if (maxOf(playerPoints, aiPoints) >= 2000) 150 else 50
+    fun restart() {
+        val fresh = newDeck()
+        deck = fresh
+        hand = fresh.take(11)
+        stock = fresh.drop(11)
+        discard = emptyList()
+        selected = emptySet()
+        playerMelds = emptyList()
+        aiMelds = emptyList()
+        playerPoints = 0
+        aiPoints = 0
+        hasDrawn = false
+        message = "Sua vez! Compre uma carta do monte ou do descarte."
+        gameOver = false
+        roundNumber = 1
+    }
+    fun aiTurn() {
+        var aiHand = (hand /* placeholder only to keep state separate */)
+        var computerCards = aiMelds.flatten()
+        // The computer's concealed hand is stored separately below.
+    }
+    var aiHand by remember { mutableStateOf(emptyList<GameCard>()) }
+    LaunchedEffect(Unit) {
+        val fresh = newDeck()
+        deck = fresh
+        hand = fresh.take(11)
+        aiHand = fresh.drop(11).take(11)
+        stock = fresh.drop(22)
+        discard = emptyList()
+    }
+    fun drawFromStock() {
+        if (hasDrawn || gameOver) return
+        if (stock.isEmpty()) { message = "O monte acabou. Inicie uma nova partida."; gameOver = true; return }
+        hand = hand + stock.first()
+        stock = stock.drop(1)
+        hasDrawn = true
+        message = "Escolha cartas para baixar um jogo ou descarte uma carta."
+    }
+    fun drawDiscard() {
+        if (hasDrawn || gameOver) return
+        if (discard.isEmpty()) { message = "Ainda não há cartas no descarte."; return }
+        hand = hand + discard.last()
+        discard = discard.dropLast(1)
+        hasDrawn = true
+        message = "Você pegou o descarte. Agora baixe um jogo ou descarte uma carta."
+    }
+    fun meldSelected() {
+        val chosen = hand.filter { selected.contains(it.id) }
+        if (!hasDrawn) { message = "Compre uma carta primeiro."; return }
+        if (!isValidMeld(chosen)) { message = "Escolha 3 ou mais cartas que formem um jogo válido."; return }
+        val value = chosen.sumOf { it.points }
+        if (playerMelds.isEmpty() && value < opening) { message = "Para baixar pela primeira vez, precisa somar pelo menos $opening pontos."; return }
+        playerMelds = playerMelds + listOf(chosen)
+        playerPoints += value
+        hand = hand.filterNot { selected.contains(it.id) }
+        selected = emptySet()
+        message = "Jogo baixado! +$value pontos."
+    }
+    fun discardSelected() {
+        if (!hasDrawn || gameOver) { message = "Compre uma carta antes de descartar."; return }
+        if (selected.size != 1) { message = "Selecione exatamente uma carta para descartar."; return }
+        val card = hand.firstOrNull { selected.contains(it.id) } ?: return
+        hand = hand.filterNot { it.id == card.id }
+        discard = discard + card
+        selected = emptySet()
+        hasDrawn = false
+        // Computer plays offline: draws, tries a legal meld, and discards a low-value card.
+        var computer = aiHand
+        if (stock.isNotEmpty()) {
+            computer = computer + stock.first()
+            stock = stock.drop(1)
+        }
+        val sorted = computer.sortedByDescending { it.points }
+        val candidate = sorted.groupBy { it.rank }.values.firstOrNull { it.size >= 3 }
+            ?: sorted.groupBy { it.suit }.values.firstOrNull { group ->
+                group.size >= 3 && group.map { if (it.rank == 1) 14 else it.rank }.sorted().zipWithNext().all { it.second - it.first == 1 }
+            }
+        if (candidate != null && (aiMelds.isNotEmpty() || candidate.sumOf { it.points } >= (if (maxOf(playerPoints, aiPoints) >= 2000) 150 else 50))) {
+            aiMelds = aiMelds + listOf(candidate)
+            aiPoints += candidate.sumOf { it.points }
+            computer = computer.filterNot { c -> candidate.any { it.id == c.id } }
+            message = "A máquina baixou um jogo de " + candidate.sumOf { it.points } + " pontos."
+        } else {
+            message = "Sua vez novamente. Compre uma carta."
+        }
+        if (computer.isNotEmpty()) {
+            val discardCard = computer.minByOrNull { it.points }!!
+            computer = computer.filterNot { it.id == discardCard.id }
+            discard = discard + discardCard
+        }
+        aiHand = computer
+        if (hand.isEmpty() || aiHand.isEmpty()) {
+            val playerTotal = playerPoints + hand.sumOf { it.points }
+            val aiTotal = aiPoints + aiHand.sumOf { it.points }
+            onRoundScored(playerTotal, aiTotal)
+            message = if (playerTotal >= aiTotal) "Rodada encerrada: você venceu!" else "Rodada encerrada: a máquina venceu."
+            gameOver = true
+        }
+    }
+    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Voltar", tint = Cream) }
+            Column(Modifier.weight(1f)) {
+                Text("MESA OFFLINE", color = Cream, fontWeight = FontWeight.Black, fontSize = 19.sp, letterSpacing = 1.sp)
+                Text("Você × Máquina • rodada $roundNumber", color = Muted, fontSize = 12.sp)
+            }
+            TextButton(onClick = { restart() }) { Text("NOVA", color = Gold, fontWeight = FontWeight.Bold) }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MiniScore("VOCÊ", playerPoints, Modifier.weight(1f))
+            MiniScore("MÁQUINA", aiPoints, Modifier.weight(1f))
+            Column(Modifier.weight(1f).background(Color(0xFF123D31), RoundedCornerShape(14.dp)).padding(10.dp)) {
+                Text("ABERTURA", color = Muted, fontSize = 9.sp)
+                Text(opening.toString() + " pts", color = Gold, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text(if (opening == 150) "MARRA" else "NORMAL", color = Muted, fontSize = 9.sp)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF104332)), shape = RoundedCornerShape(14.dp)) {
+            Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                Text(message, color = Cream, fontSize = 12.sp, lineHeight = 17.sp)
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("MONTE: " + stock.size, color = Muted, fontSize = 11.sp)
+                    Text("•", color = Gold)
+                    Text("DESCARTE: " + (discard.lastOrNull()?.let { it.label + it.displaySuit } ?: "vazio"), color = Gold, fontSize = 11.sp)
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Text("JOGOS BAIXADOS", color = Cream, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 1.sp)
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MeldPile("VOCÊ", playerMelds)
+            MeldPile("MÁQUINA", aiMelds)
+        }
+        Spacer(Modifier.height(10.dp))
+        Text("SUA MÃO • toque para selecionar", color = Cream, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = .5.sp)
+        Text("Selecionadas: " + selected.size + " • compre antes de jogar", color = Muted, fontSize = 11.sp)
+        Spacer(Modifier.height(6.dp))
+        Column(Modifier.weight(1f).fillMaxWidth().background(Color(0x44217A5B), RoundedCornerShape(18.dp)).padding(8.dp)) {
+            hand.chunked(4).forEach { rowCards ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    rowCards.forEach { card ->
+                        MiniPlayingCard(card, selected.contains(card.id), Modifier.weight(1f)) {
+                            if (!gameOver) selected = if (selected.contains(card.id)) selected - card.id else selected + card.id
+                        }
+                    }
+                    repeat(4 - rowCards.size) { Spacer(Modifier.weight(1f)) }
+                }
+                Spacer(Modifier.height(6.dp))
+            }
+            if (hand.isEmpty()) Text("Sem cartas na mão", color = Muted, modifier = Modifier.padding(12.dp))
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { drawFromStock() }, enabled = !hasDrawn && !gameOver, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = Cream)) { Text("COMPRAR", fontWeight = FontWeight.Bold) }
+            OutlinedButton(onClick = { drawDiscard() }, enabled = !hasDrawn && discard.isNotEmpty() && !gameOver, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = Cream)) { Text("PEGAR DESCARTE", fontWeight = FontWeight.Bold, fontSize = 10.sp) }
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { meldSelected() }, enabled = hasDrawn && selected.size >= 3 && !gameOver, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Forest)) { Text("BAIXAR JOGO", fontWeight = FontWeight.Black, fontSize = 11.sp) }
+            Button(onClick = { discardSelected() }, enabled = hasDrawn && selected.size == 1 && !gameOver, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF17634B), contentColor = Cream)) { Text("DESCARTAR", fontWeight = FontWeight.Black, fontSize = 11.sp) }
+        }
+        if (gameOver) {
+            Spacer(Modifier.height(6.dp))
+            Button(onClick = { restart() }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Forest)) { Text("JOGAR OUTRA PARTIDA", fontWeight = FontWeight.Black) }
+        }
+    }
+}
+
+@Composable
+fun MiniScore(label: String, score: Int, modifier: Modifier = Modifier) {
+    Column(modifier.background(Color(0xFF0B4938), RoundedCornerShape(14.dp)).padding(10.dp)) {
+        Text(label, color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Text(score.toString(), color = Gold, fontSize = 23.sp, fontWeight = FontWeight.Black)
+        Text("PONTOS", color = Muted, fontSize = 8.sp, letterSpacing = 1.sp)
+    }
+}
+
+@Composable
+fun MeldPile(label: String, melds: List<List<GameCard>>) {
+    Column(Modifier.widthIn(min = 120.dp).background(Color(0xFF103D32), RoundedCornerShape(12.dp)).padding(8.dp)) {
+        Text(label + " • " + melds.size, color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        if (melds.isEmpty()) Text("Nenhum jogo", color = Muted, fontSize = 10.sp)
+        melds.forEach { meld ->
+            Text(meld.joinToString(" ") { it.label + it.displaySuit }, color = Cream, fontSize = 11.sp)
+        }
+    }
+}
+
+@Composable
+fun MiniPlayingCard(card: GameCard, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Column(modifier.height(72.dp).background(if (selected) Color(0xFFFFD778) else Cream, RoundedCornerShape(9.dp))
+        .border(if (selected) 2.dp else 1.dp, if (selected) Gold else Color(0xFFE6DCC9), RoundedCornerShape(9.dp))
+        .clickable(onClick = onClick).padding(5.dp), verticalArrangement = Arrangement.SpaceBetween) {
+        Text(card.label, color = if (card.isRed) Red else Forest, fontWeight = FontWeight.Black, fontSize = 13.sp)
+        Text(card.displaySuit, color = if (card.isRed) Red else Forest, fontSize = 18.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+        Text(card.label, color = if (card.isRed) Red else Forest, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.align(Alignment.End))
     }
 }
 
@@ -168,7 +436,7 @@ fun OnlineScreen(code: String, onCode: (String) -> Unit, onBack: () -> Unit) {
                 OutlinedTextField(code, onCode, modifier = Modifier.fillMaxWidth(), label = { Text("Código da sala") }, placeholder = { Text("Ex.: A7K2Q") }, singleLine = true)
                 Spacer(Modifier.height(14.dp))
                 Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().height(52.dp), colors = ButtonDefaults.buttonColors(containerColor = Gold, disabledContainerColor = Color(0xFF5E624F)), shape = RoundedCornerShape(14.dp)) { Text("CONECTAR À MESA", fontWeight = FontWeight.Black) }
-                Spacer(Modifier.height(10.dp)); Text("A conexão online precisa ser vinculada a um servidor de partidas. A tela está preparada, mas a sala ainda não conecta sem configurar esse serviço.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
+                Spacer(Modifier.height(10.dp)); Text("A conexão online precisa ser vinculada a um servidor de partidas. Enquanto isso, você pode jogar offline contra a máquina.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
             }
         }
         Spacer(Modifier.height(18.dp)); Text("PREVISTO PARA O MULTIPLAYER", color = Cream, fontWeight = FontWeight.Bold, fontSize = 12.sp)
