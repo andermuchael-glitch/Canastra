@@ -306,7 +306,7 @@ fun OfflineGameScreen(onBack: () -> Unit, onRoundScored: (Int, Int) -> Unit) {
             ?: sorted.groupBy { it.suit }.values.firstOrNull { group ->
                 group.size >= 3 && group.map { if (it.rank == 1) 14 else it.rank }.sorted().zipWithNext().all { it.second - it.first == 1 }
             }
-        if (candidate != null && (aiMelds.isNotEmpty() || candidate.sumOf { it.points } >= (if (maxOf(playerPoints, aiPoints) >= 2000) 150 else 50))) {
+        if (candidate != null && (aiMelds.isNotEmpty() || candidate.sumOf { it.points } >= (if (maxOf(playerPoints, aiPoints) >= 2000) 150 else 0))) {
             aiMelds = aiMelds + listOf(candidate)
             aiPoints += candidate.sumOf { it.points }
             computer = computer.filterNot { c -> candidate.any { it.id == c.id } }
