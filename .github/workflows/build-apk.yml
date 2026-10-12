@@ -3,11 +3,6 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - '**.kt'
-      - '**.kts'
-      - '**.xml'
-      - '.github/workflows/build-apk.yml'
 jobs:
   build:
     runs-on: ubuntu-latest
