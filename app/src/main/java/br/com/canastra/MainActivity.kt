@@ -174,7 +174,7 @@ fun ScoreCard(label: String, score: Int, color: Color, modifier: Modifier = Modi
     }
 }
 
-private data class GameCard(val id: Int, val rank: Int, val suit: String, val joker: Boolean = false) {
+data class GameCard(val id: Int, val rank: Int, val suit: String, val joker: Boolean = false) {
     val label: String get() = if (joker) "★" else when (rank) { 1 -> "A"; 11 -> "J"; 12 -> "Q"; 13 -> "K"; else -> rank.toString() }
     val points: Int get() = when { joker -> 50; rank == 1 -> 15; rank >= 8 -> 10; else -> 5 }
     val displaySuit: String get() = when (suit) { "S" -> "♠"; "H" -> "♥"; "D" -> "♦"; "C" -> "♣"; else -> "★" }
